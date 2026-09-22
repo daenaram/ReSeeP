@@ -1,12 +1,936 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>ReSeeP</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ReSeeP — recipe &amp; pantry tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2F4EC;
+    --surface:#FFFFFF;
+    --ink:#202B1F;
+    --ink-soft:#55614F;
+    --herb:#4C6B45;
+    --herb-dark:#33482F;
+    --spice:#C67D2E;
+    --spice-dark:#9C5E1D;
+    --alert:#AE4238;
+    --alert-dark:#8A322A;
+    --line:#D8DCC9;
+    --focus:#2F6FDB;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  a{ color:inherit; }
+  button{ font-family:inherit; font-size:inherit; color:inherit; }
+
+  :focus-visible{
+    outline:2px solid var(--focus);
+    outline-offset:2px;
+    border-radius:2px;
+  }
+
+  .shell{
+    max-width:760px;
+    margin:0 auto;
+    padding:40px 24px 96px;
+  }
+
+  /* Header */
+  .app-header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .app-title{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size:34px;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  .app-title span{ color:var(--herb); }
+  .app-tagline{
+    margin:4px 0 0;
+    color:var(--ink-soft);
+    font-size:14px;
+    max-width:34ch;
+  }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    gap:2px;
+    margin-bottom:0;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    background:none;
+    border:none;
+    border-bottom:2px solid transparent;
+    padding:10px 4px;
+    margin-right:22px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:500;
+    color:var(--ink-soft);
+    position:relative;
+    top:1px;
+  }
+  .tab-btn:hover{ color:var(--ink); }
+  .tab-btn.active{
+    color:var(--herb-dark);
+    border-bottom-color:var(--herb);
+  }
+
+  .view{ padding-top:26px; }
+  .view[hidden]{ display:none; }
+
+  /* Card (recipe-box motif) */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    position:relative;
+    padding:20px 22px;
+  }
+  .card::before{
+    /* punch-hole, like an index card */
+    content:"";
+    position:absolute;
+    top:14px;
+    left:14px;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--paper);
+    border:1px solid var(--line);
+  }
+  .card + .card{ margin-top:14px; }
+
+  /* Recipes list */
+  .list-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+    gap:12px;
+  }
+  .list-toolbar h2{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0;
+  }
+  .btn{
+    border:1px solid transparent;
+    padding:9px 16px;
+    cursor:pointer;
+    font-weight:500;
+    line-height:1;
+  }
+  .btn-primary{ background:var(--herb); color:#fff; }
+  .btn-primary:hover{ background:var(--herb-dark); }
+  .btn-secondary{ background:transparent; border-color:var(--line); color:var(--ink); }
+  .btn-secondary:hover{ border-color:var(--ink-soft); }
+  .btn-danger{ background:transparent; border-color:var(--alert); color:var(--alert); }
+  .btn-danger:hover{ background:var(--alert); color:#fff; }
+  .btn-small{ padding:6px 10px; font-size:13px; }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+  .recipe-card{
+    padding-left:32px;
+    cursor:pointer;
+  }
+  .recipe-card:hover{ border-color:var(--ink-soft); }
+  .recipe-card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .recipe-name{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size:18px;
+    margin:0 0 4px;
+  }
+  .recipe-meta{
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  .badge{
+    display:inline-block;
+    font-size:12px;
+    font-weight:600;
+    padding:3px 9px;
+    white-space:nowrap;
+    border:1px solid transparent;
+  }
+  .badge-ok{ color:var(--herb-dark); border-color:var(--herb); background:#EAF0E6; }
+  .badge-missing{ color:var(--alert-dark); border-color:var(--alert); background:#F7E9E7; }
+
+  .empty-state{
+    padding:32px 22px;
+    text-align:left;
+    color:var(--ink-soft);
+  }
+  .empty-state strong{ display:block; color:var(--ink); font-family:"Fraunces", serif; font-size:17px; margin-bottom:4px; font-weight:600; }
+
+  /* Recipe detail */
+  .field-row{
+    display:flex;
+    gap:16px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .field{ flex:1; min-width:140px; }
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+  }
+  .field input, .field select{
+    width:100%;
+    border:1px solid var(--line);
+    background:var(--paper);
+    padding:9px 10px;
+    font-family:inherit;
+    font-size:14px;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ background:#fff; }
+
+  .section-label{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size:15px;
+    margin:22px 0 10px;
+    padding-top:14px;
+    border-top:1px dashed var(--line);
+  }
+  .section-label:first-of-type{ border-top:none; padding-top:0; margin-top:6px; }
+
+  .ingredient-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 0;
+    border-bottom:1px dotted var(--line);
+  }
+  .ingredient-row:last-of-type{ border-bottom:none; }
+  .ingredient-name{
+    flex:1 1 auto;
+    font-weight:500;
+  }
+  .ingredient-leader{
+    flex:1 1 auto;
+    border-bottom:1px dotted var(--line);
+    margin:0 8px;
+    min-width:20px;
+    align-self:flex-end;
+    height:0;
+  }
+  .ingredient-qty{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .ingredient-qty input{
+    width:60px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    padding:6px 8px;
+    text-align:right;
+    font-family:inherit;
+  }
+  .ingredient-unit{ color:var(--ink-soft); font-size:13px; min-width:36px; }
+  .icon-btn{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    cursor:pointer;
+    padding:4px 6px;
+    font-size:15px;
+    line-height:1;
+  }
+  .icon-btn:hover{ color:var(--alert); }
+
+  .add-ingredient{
+    display:flex;
+    gap:8px;
+    margin-top:12px;
+    flex-wrap:wrap;
+  }
+  .add-ingredient select{
+    flex:1;
+    min-width:140px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    padding:8px 10px;
+    font-family:inherit;
+  }
+  .add-ingredient input{
+    width:80px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    padding:8px 10px;
+    font-family:inherit;
+  }
+
+  .missing-panel{
+    margin-top:18px;
+    padding:14px 16px;
+    border:1px solid var(--line);
+    background:var(--paper);
+  }
+  .missing-panel.has-gap{ border-color:var(--alert); background:#FBF1EF; }
+  .missing-panel.all-good{ border-color:var(--herb); background:#EFF4EC; }
+  .missing-title{
+    font-weight:600;
+    font-size:13px;
+    margin-bottom:6px;
+  }
+  .missing-list{ font-size:13px; color:var(--ink-soft); }
+  .missing-list li{ margin-bottom:2px; }
+
+  .detail-actions{
+    display:flex;
+    justify-content:space-between;
+    margin-top:24px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+  }
+  .detail-actions .right{ display:flex; gap:8px; }
+
+  /* Pantry */
+  .pantry-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px dotted var(--line);
+  }
+  .pantry-row:last-of-type{ border-bottom:none; }
+  .pantry-name{ flex:1; font-weight:500; }
+  .pantry-name small{ display:block; color:var(--ink-soft); font-weight:400; font-size:12px; }
+  .pantry-qty{ display:flex; align-items:center; gap:6px; }
+  .pantry-qty input{
+    width:70px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    padding:6px 8px;
+    text-align:right;
+    font-family:inherit;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:22px;
+    left:50%;
+    transform:translateX(-50%) translateY(0);
+    background:var(--ink);
+    color:#fff;
+    padding:10px 18px;
+    font-size:13px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+  .status-line{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+  .status-dot{
+    display:inline-block;
+    width:7px; height:7px;
+    border-radius:50%;
+    background:var(--spice);
+    margin-right:6px;
+    position:relative;
+    top:-1px;
+  }
+  .status-dot.live{ background:var(--herb); }
+
+  @media (prefers-reduced-motion: reduce){
+    .toast{ transition:none; }
+  }
+
+  @media (max-width:520px){
+    .shell{ padding:28px 16px 80px; }
+    .app-title{ font-size:28px; }
+    .ingredient-leader{ display:none; }
+    .field-row{ gap:12px; }
+  }
+</style>
 </head>
 <body>
-    <h1>ReSeeP</h1>
-    <p>Recipe and ingredient tracker. If you can see this page, static content is being served correctly.</p>
-    <p>Try the API test endpoint: <a href="api/ping">api/ping</a></p>
+
+<div class="shell">
+
+  <header class="app-header">
+    <div>
+      <h1 class="app-title">Re<span>See</span>P</h1>
+      <p class="app-tagline">Keep your recipes and your pantry talking to each other.</p>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab-btn active" data-view="recipes" role="tab" aria-selected="true">Recipes</button>
+    <button class="tab-btn" data-view="pantry" role="tab" aria-selected="false">Pantry</button>
+  </nav>
+
+  <p class="status-line" id="apiStatus"><span class="status-dot" id="apiDot"></span><span id="apiStatusText">Checking for a server…</span></p>
+
+  <!-- RECIPES LIST -->
+  <section class="view" id="view-recipes">
+    <div class="list-toolbar">
+      <h2>Your recipes</h2>
+      <button class="btn btn-primary" id="btnNewRecipe">+ New recipe</button>
+    </div>
+    <div id="recipeList"></div>
+  </section>
+
+  <!-- RECIPE DETAIL -->
+  <section class="view" id="view-detail" hidden>
+    <div class="list-toolbar">
+      <h2 id="detailHeading">Recipe</h2>
+      <button class="btn btn-secondary" id="btnBackToList">Back to recipes</button>
+    </div>
+    <div class="card" id="detailCard" style="padding-left:22px;">
+      <div class="field-row">
+        <div class="field">
+          <label for="fRecipeName">Title</label>
+          <input type="text" id="fRecipeName" placeholder="e.g. Weeknight tomato basil pasta" />
+        </div>
+        <div class="field" style="max-width:120px;">
+          <label for="fRecipeServings">Servings</label>
+          <input type="number" id="fRecipeServings" min="1" value="2" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fRecipeNotes">Notes (optional)</label>
+          <input type="text" id="fRecipeNotes" placeholder="e.g. Quick midweek dinner" />
+        </div>
+      </div>
+
+      <h3 class="section-label">Ingredients</h3>
+      <div id="ingredientRows"></div>
+      <div class="add-ingredient">
+        <select id="addIngredientSelect"></select>
+        <input type="number" id="addIngredientQty" placeholder="Qty" min="0" step="0.5" />
+        <button class="btn btn-secondary btn-small" id="btnAddIngredient">Add</button>
+      </div>
+
+      <div class="missing-panel" id="missingPanel">
+        <div class="missing-title" id="missingTitle">What's missing</div>
+        <ul class="missing-list" id="missingList"></ul>
+      </div>
+
+      <div class="detail-actions">
+        <button class="btn btn-danger" id="btnDeleteRecipe">Delete recipe</button>
+        <div class="right">
+          <button class="btn btn-secondary" id="btnCancelDetail">Cancel</button>
+          <button class="btn btn-primary" id="btnSaveRecipe">Save recipe</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PANTRY -->
+  <section class="view" id="view-pantry" hidden>
+    <div class="list-toolbar">
+      <h2>Pantry</h2>
+    </div>
+    <div class="card" id="pantryCard" style="padding-left:22px;">
+      <div id="pantryRows"></div>
+      <div class="add-ingredient">
+        <input type="text" id="newIngredientName" placeholder="New ingredient name" style="flex:1; min-width:140px;" />
+        <input type="text" id="newIngredientUnit" placeholder="unit" style="width:70px;" />
+        <input type="number" id="newIngredientQty" placeholder="Qty" min="0" step="0.5" />
+        <button class="btn btn-secondary btn-small" id="btnAddPantryItem">Add to pantry</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   ReSeeP frontend client
+   -------------------------------------------------------------------------
+   This page is written to talk to a JAX-RS backend on Payara through the
+   endpoints below. Point API_BASE at your deployed service, e.g.
+   "http://localhost:8080/reseep/api". Until that backend exists (or if a
+   request fails), the app falls back to the in-memory MOCK data so the UI
+   is fully clickable on its own.
+
+   Expected REST resources (Option A: 5 endpoints, 3 tables):
+     GET    {API_BASE}/recipes            -> list of recipes (with items[])
+     POST   {API_BASE}/recipes            -> create a recipe
+     PUT    {API_BASE}/recipes/{id}       -> update a recipe
+     DELETE {API_BASE}/recipes/{id}       -> delete a recipe
+     GET    {API_BASE}/pantry             -> list of ingredients + qty on hand
+     PUT    {API_BASE}/pantry/{ingId}     -> update quantity on hand
+
+   Data shapes:
+     Recipe   { id, name, servings, notes, items: [{ ingredientId, qty }] }
+     Pantry   [{ ingredientId, name, unit, qtyOnHand }]
+   ========================================================================= */
+
+const API_BASE = "/api"; // change to your Payara base URL, e.g. http://localhost:8080/reseep/api
+
+let usingLiveApi = false;
+
+// ---- Mock data (used until the real API is reachable) -------------------
+let mockIngredients = [
+  { id: "ing1", name: "Spaghetti",      unit: "g",   qtyOnHand: 400 },
+  { id: "ing2", name: "Tomato",         unit: "pc",  qtyOnHand: 2 },
+  { id: "ing3", name: "Basil",          unit: "g",   qtyOnHand: 0 },
+  { id: "ing4", name: "Garlic",         unit: "clove", qtyOnHand: 6 },
+  { id: "ing5", name: "Rice",           unit: "g",   qtyOnHand: 500 },
+  { id: "ing6", name: "Egg",            unit: "pc",  qtyOnHand: 3 },
+  { id: "ing7", name: "Soy sauce",      unit: "tbsp", qtyOnHand: 0 },
+  { id: "ing8", name: "Ground beef",    unit: "g",   qtyOnHand: 0 },
+  { id: "ing9", name: "Kidney beans",   unit: "can", qtyOnHand: 2 },
+  { id: "ing10", name: "Chili powder",  unit: "tsp", qtyOnHand: 4 }
+];
+
+let mockRecipes = [
+  {
+    id: "r1", name: "Tomato basil pasta", servings: 2, notes: "Quick midweek dinner",
+    items: [
+      { ingredientId: "ing1", qty: 200 },
+      { ingredientId: "ing2", qty: 3 },
+      { ingredientId: "ing3", qty: 10 },
+      { ingredientId: "ing4", qty: 2 }
+    ]
+  },
+  {
+    id: "r2", name: "Pantry fried rice", servings: 3, notes: "Good for leftovers",
+    items: [
+      { ingredientId: "ing5", qty: 300 },
+      { ingredientId: "ing6", qty: 2 },
+      { ingredientId: "ing7", qty: 2 }
+    ]
+  },
+  {
+    id: "r3", name: "Weeknight chili", servings: 4, notes: "",
+    items: [
+      { ingredientId: "ing8", qty: 400 },
+      { ingredientId: "ing9", qty: 2 },
+      { ingredientId: "ing10", qty: 3 }
+    ]
+  }
+];
+
+//  Thin API layer: tries the real backend, falls back to mock data if the request fails
+async function apiRequest(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
+  if (!res.ok) throw new Error("Request failed: " + res.status);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadRecipes() {
+  try {
+    const data = await apiRequest("/recipes");
+    usingLiveApi = true;
+    return data;
+  } catch (e) {
+    usingLiveApi = false;
+    return mockRecipes;
+  }
+}
+
+async function loadPantry() {
+  try {
+    const data = await apiRequest("/pantry");
+    usingLiveApi = true;
+    return data;
+  } catch (e) {
+    usingLiveApi = false;
+    return mockIngredients;
+  }
+}
+
+async function saveRecipeApi(recipe) {
+  try {
+    if (recipe.id && !recipe.id.toString().startsWith("new-")) {
+      await apiRequest(`/recipes/${recipe.id}`, { method: "PUT", body: JSON.stringify(recipe) });
+    } else {
+      await apiRequest("/recipes", { method: "POST", body: JSON.stringify(recipe) });
+    }
+    return true;
+  } catch (e) {
+    return false; // falls back to local mutation of mock data
+  }
+}
+
+async function deleteRecipeApi(id) {
+  try {
+    await apiRequest(`/recipes/${id}`, { method: "DELETE" });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function savePantryItemApi(item) {
+  try {
+    await apiRequest(`/pantry/${item.id}`, { method: "PUT", body: JSON.stringify(item) });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// App state 
+let recipes = [];
+let ingredients = [];
+let currentRecipe = null; // recipe object being edited, or null
+
+const el = (id) => document.getElementById(id);
+
+function findIngredient(id) {
+  return ingredients.find((i) => i.id === id);
+}
+
+function showToast(msg) {
+  const t = el("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// Tabs 
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => { b.classList.remove("active"); b.setAttribute("aria-selected","false"); });
+    btn.classList.add("active");
+    btn.setAttribute("aria-selected","true");
+    showView(btn.dataset.view);
+  });
+});
+
+function showView(name) {
+  ["recipes","pantry","detail"].forEach((v) => {
+    el("view-" + v).hidden = (v !== name);
+  });
+}
+
+// Rendering: recipe list 
+function missingForRecipe(recipe) {
+  const missing = [];
+  recipe.items.forEach((item) => {
+    const ing = findIngredient(item.ingredientId);
+    if (!ing) return;
+    if (ing.qtyOnHand < item.qty) {
+      missing.push({ name: ing.name, short: item.qty - ing.qtyOnHand, unit: ing.unit });
+    }
+  });
+  return missing;
+}
+
+function renderRecipeList() {
+  const container = el("recipeList");
+  container.innerHTML = "";
+
+  if (recipes.length === 0) {
+    container.innerHTML = `
+      <div class="card empty-state">
+        <strong>No recipes yet</strong>
+        Add your first recipe to start tracking what it needs from your pantry.
+      </div>`;
+    return;
+  }
+
+  recipes.forEach((recipe) => {
+    const missing = missingForRecipe(recipe);
+    const card = document.createElement("div");
+    card.className = "card recipe-card";
+    card.innerHTML = `
+      <div class="recipe-card-top">
+        <div>
+          <p class="recipe-name">${escapeHtml(recipe.name)}</p>
+          <p class="recipe-meta">${recipe.items.length} ingredient${recipe.items.length === 1 ? "" : "s"} · serves ${recipe.servings}</p>
+        </div>
+        ${missing.length === 0
+          ? `<span class="badge badge-ok">Ready to cook</span>`
+          : `<span class="badge badge-missing">${missing.length} missing</span>`}
+      </div>
+    `;
+    card.addEventListener("click", () => openRecipeDetail(recipe.id));
+    container.appendChild(card);
+  });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = str ?? "";
+  return d.innerHTML;
+}
+
+// Recipe detail view
+function openRecipeDetail(id) {
+  const recipe = recipes.find((r) => r.id === id);
+  currentRecipe = JSON.parse(JSON.stringify(recipe)); // work on a copy
+  renderDetail(false);
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  showView("detail");
+}
+
+function openNewRecipe() {
+  currentRecipe = { id: "new-" + Date.now(), name: "", servings: 2, notes: "", items: [] };
+  renderDetail(true);
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  showView("detail");
+}
+
+function renderDetail(isNew) {
+  el("detailHeading").textContent = isNew ? "New recipe" : "Edit recipe";
+  el("fRecipeName").value = currentRecipe.name;
+  el("fRecipeServings").value = currentRecipe.servings;
+  el("fRecipeNotes").value = currentRecipe.notes || "";
+  el("btnDeleteRecipe").style.visibility = isNew ? "hidden" : "visible";
+
+  renderIngredientRows();
+  renderAddIngredientSelect();
+  renderMissingPanel();
+}
+
+function renderIngredientRows() {
+  const container = el("ingredientRows");
+  container.innerHTML = "";
+
+  if (currentRecipe.items.length === 0) {
+    container.innerHTML = `<p class="recipe-meta" style="padding:6px 0;">No ingredients added yet.</p>`;
+    return;
+  }
+
+  currentRecipe.items.forEach((item, idx) => {
+    const ing = findIngredient(item.ingredientId);
+    if (!ing) return;
+    const row = document.createElement("div");
+    row.className = "ingredient-row";
+    row.innerHTML = `
+      <span class="ingredient-name">${escapeHtml(ing.name)}</span>
+      <span class="ingredient-leader"></span>
+      <span class="ingredient-qty">
+        <input type="number" min="0" step="0.5" value="${item.qty}" data-idx="${idx}" class="qtyInput" />
+        <span class="ingredient-unit">${escapeHtml(ing.unit)}</span>
+        <button class="icon-btn" title="Remove" data-idx="${idx}">✕</button>
+      </span>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll(".qtyInput").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const idx = Number(e.target.dataset.idx);
+      currentRecipe.items[idx].qty = Number(e.target.value) || 0;
+      renderMissingPanel();
+    });
+  });
+  container.querySelectorAll(".icon-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const idx = Number(e.target.dataset.idx);
+      currentRecipe.items.splice(idx, 1);
+      renderIngredientRows();
+      renderAddIngredientSelect();
+      renderMissingPanel();
+    });
+  });
+}
+
+function renderAddIngredientSelect() {
+  const select = el("addIngredientSelect");
+  const usedIds = new Set(currentRecipe.items.map((i) => i.ingredientId));
+  const available = ingredients.filter((i) => !usedIds.has(i.id));
+  select.innerHTML = available.length
+    ? available.map((i) => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join("")
+    : `<option value="">All ingredients added</option>`;
+}
+
+el("btnAddIngredient").addEventListener("click", () => {
+  const select = el("addIngredientSelect");
+  const qtyInput = el("addIngredientQty");
+  const ingId = select.value;
+  if (!ingId) return;
+  const qty = Number(qtyInput.value) || 1;
+  currentRecipe.items.push({ ingredientId: ingId, qty });
+  qtyInput.value = "";
+  renderIngredientRows();
+  renderAddIngredientSelect();
+  renderMissingPanel();
+});
+
+function renderMissingPanel() {
+  const panel = el("missingPanel");
+  const list = el("missingList");
+  const missing = missingForRecipe(currentRecipe);
+
+  list.innerHTML = "";
+  if (currentRecipe.items.length === 0) {
+    panel.className = "missing-panel";
+    el("missingTitle").textContent = "What's missing";
+    list.innerHTML = `<li>Add ingredients to see what your pantry is short on.</li>`;
+    return;
+  }
+
+  if (missing.length === 0) {
+    panel.className = "missing-panel all-good";
+    el("missingTitle").textContent = "You have everything for this recipe";
+  } else {
+    panel.className = "missing-panel has-gap";
+    el("missingTitle").textContent = "What's missing";
+    missing.forEach((m) => {
+      const li = document.createElement("li");
+      li.textContent = `${m.name} — short ${m.short} ${m.unit}`;
+      list.appendChild(li);
+    });
+  }
+}
+
+el("btnNewRecipe").addEventListener("click", openNewRecipe);
+el("btnBackToList").addEventListener("click", backToRecipes);
+el("btnCancelDetail").addEventListener("click", backToRecipes);
+
+function backToRecipes() {
+  currentRecipe = null;
+  document.querySelector('.tab-btn[data-view="recipes"]').classList.add("active");
+  document.querySelector('.tab-btn[data-view="recipes"]').setAttribute("aria-selected","true");
+  showView("recipes");
+}
+
+el("btnSaveRecipe").addEventListener("click", async () => {
+  const name = el("fRecipeName").value.trim();
+  if (!name) {
+    showToast("Give the recipe a title before saving");
+    el("fRecipeName").focus();
+    return;
+  }
+  currentRecipe.name = name;
+  currentRecipe.servings = Math.max(1, Number(el("fRecipeServings").value) || 1);
+  currentRecipe.notes = el("fRecipeNotes").value.trim();
+
+  const isNew = currentRecipe.id.toString().startsWith("new-");
+  const savedOnServer = await saveRecipeApi(currentRecipe);
+
+  if (isNew) {
+    if (!savedOnServer) currentRecipe.id = "r" + Date.now(); // local id if no backend yet
+    recipes.push(currentRecipe);
+  } else {
+    const i = recipes.findIndex((r) => r.id === currentRecipe.id);
+    recipes[i] = currentRecipe;
+  }
+
+  showToast(savedOnServer ? "Recipe saved" : "Recipe saved locally (no server connected)");
+  renderRecipeList();
+  backToRecipes();
+});
+
+el("btnDeleteRecipe").addEventListener("click", async () => {
+  if (!confirm(`Delete "${currentRecipe.name}"? This can't be undone.`)) return;
+  const deletedOnServer = await deleteRecipeApi(currentRecipe.id);
+  recipes = recipes.filter((r) => r.id !== currentRecipe.id);
+  showToast(deletedOnServer ? "Recipe deleted" : "Recipe deleted locally (no server connected)");
+  renderRecipeList();
+  backToRecipes();
+});
+
+// Pantry view 
+function renderPantry() {
+  const container = el("pantryRows");
+  container.innerHTML = "";
+
+  if (ingredients.length === 0) {
+    container.innerHTML = `<p class="recipe-meta" style="padding:6px 0;">Your pantry is empty.</p>`;
+    return;
+  }
+
+  ingredients.forEach((ing) => {
+    const row = document.createElement("div");
+    row.className = "pantry-row";
+    row.innerHTML = `
+      <span class="pantry-name">${escapeHtml(ing.name)}<small>${escapeHtml(ing.unit)}</small></span>
+      <span class="pantry-qty">
+        <input type="number" min="0" step="0.5" value="${ing.qtyOnHand}" data-id="${ing.id}" class="pantryQtyInput" />
+      </span>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll(".pantryQtyInput").forEach((input) => {
+    input.addEventListener("change", async (e) => {
+      const id = e.target.dataset.id;
+      const ing = findIngredient(id);
+      ing.qtyOnHand = Number(e.target.value) || 0;
+      const savedOnServer = await savePantryItemApi(ing);
+      showToast(savedOnServer ? "Pantry updated" : "Updated locally (no server connected)");
+      renderRecipeList(); // missing-ingredient badges may have changed
+    });
+  });
+}
+
+el("btnAddPantryItem").addEventListener("click", () => {
+  const nameInput = el("newIngredientName");
+  const unitInput = el("newIngredientUnit");
+  const qtyInput = el("newIngredientQty");
+  const name = nameInput.value.trim();
+  if (!name) {
+    showToast("Give the ingredient a name first");
+    nameInput.focus();
+    return;
+  }
+  ingredients.push({
+    id: "ing" + Date.now(),
+    name,
+    unit: unitInput.value.trim() || "unit",
+    qtyOnHand: Number(qtyInput.value) || 0
+  });
+  nameInput.value = "";
+  unitInput.value = "";
+  qtyInput.value = "";
+  renderPantry();
+  showToast("Added to pantry");
+});
+
+async function init() {
+  [recipes, ingredients] = await Promise.all([loadRecipes(), loadPantry()]);
+  el("apiDot").classList.toggle("live", usingLiveApi);
+  el("apiStatusText").textContent = usingLiveApi
+    ? `Connected to ${API_BASE}`
+    : `No server at ${API_BASE} — showing sample data`;
+  renderRecipeList();
+  renderPantry();
+}
+
+init();
+</script>
+
 </body>
 </html>
