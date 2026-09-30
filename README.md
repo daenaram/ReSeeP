@@ -10,32 +10,22 @@ without any changes on that side, once you point `API_BASE` at this app.
 - Apache Maven 3.9.x
 - Payara Server 6.2025.11 (JDK 21) or 7.2026.2 (JDK 25)
 - MySQL Connector/J 9.7, placed in `<Payara>/glassfish/domains/domain1/lib`
-- An AWS MySQL database (`comp713_w3`) with a JDBC connection pool and JDBC
-  resource already created in Payara (see the lab setup notes)
 
-## 1. Create the database tables
+## 1. Point the persistence unit at your JDBC resource
 
-Run `db/schema.sql` against `comp713_w3`. It creates three tables
-(`ingredient`, `recipe`, `recipe_ingredient`) and inserts the same sample
-data the frontend uses as its offline demo, so the two line up once
-connected.
-
-```
-mysql -h <your-aws-host> -u comp713_student -p comp713_w3 < db/schema.sql
-```
-
-## 2. Point the persistence unit at your JDBC resource
-
-Open `src/main/resources/META-INF/persistence.xml` and change:
+Open `src/main/resources/META-INF/persistence.xml` and confirm:
 
 ```xml
 <jta-data-source>jdbc/ReSeePPool</jta-data-source>
 ```
+There is no separate SQL script to run by hand — the three tables
+(`ingredient`, `recipe`, `recipe_ingredient`) and the sample data are created
+automatically the first time the app deploys, by `DbInitializer.java` (see
+below). If your database already has empty tables from an earlier attempt,
+that's fine — `DbInitializer` only inserts sample data if the `ingredient`
+table is currently empty, so it won't duplicate anything.
 
-to the JNDI name of the JDBC Resource you created in Payara (Resources >
-JDBC > JDBC Resources) for the `comp713_w3` connection pool.
-
-## 3. Build
+## 2. Build
 
 ```
 mvn clean package
@@ -43,23 +33,25 @@ mvn clean package
 
 This produces `target/reseep.war`.
 
-## 4. Deploy
+## 3. Deploy
 
 Deploy `reseep.war` to Payara — either drag it into the admin console
 (Applications > Deploy) or:
 
 ```
-asadmin deploy target/reseep.war
+asadmin deploy --force=true target/reseep.war
 ```
 
-With the default `finalName` of `reseep`, the app is served at
-`http://localhost:8080/reseep`, so the API root is:
+The app is served at `http://localhost:8080/reseep`, so the API root is:
 
 ```
 http://localhost:8080/reseep/api
 ```
 
-## 5. Point the frontend at it
+Watch `server.log` for the line `[DbInitializer] Schema check complete.` to
+confirm the tables were created (or already existed) without errors.
+
+## 4. Point the frontend at it
 
 In `index.html`, set:
 
@@ -68,8 +60,16 @@ const API_BASE = "http://localhost:8080/reseep/api";
 ```
 
 Reload the page — the status line under the tabs should switch from
-"showing sample data" to "Connected to …", and the same recipes/pantry
-items from `schema.sql` should appear (matching the offline demo data).
+"showing sample data" to "Connected to …", and the same sample recipes and
+pantry items the frontend uses offline should now be coming from the
+database instead.
+
+## Resetting the data
+
+Visiting `http://localhost:8080/reseep/reset` in a browser clears every row
+from all three tables (see `ResetServlet.java`). Useful before a clean demo
+run. If you redeploy afterwards, `DbInitializer` will reseed the sample data
+automatically, since it'll find the `ingredient` table empty again.
 
 ## Endpoints
 
@@ -98,3 +98,9 @@ returns `404 Not Found`.
 - CORS is wide open (`Access-Control-Allow-Origin: *`) in `CorsFilter.java`,
   which is convenient for local development/marking but not something
   you'd ship as-is.
+- Schema creation and seeding happen in application code (`DbInitializer`)
+  rather than a proper migration tool — fine for coursework, but a real
+  deployment would use something like Flyway instead.
+- `/reset` has no confirmation step and no access control — anyone who
+  knows the URL can wipe the data instantly. Acceptable for a local dev
+  convenience, not something to expose publicly.
